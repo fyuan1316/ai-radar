@@ -52,13 +52,17 @@
 
 ## 推送飞书
 
-digest 写完后,生成一段不超过 500 字的简讯,推送到 `$FEISHU_WEBHOOK`:
+digest 写完后,生成一段不超过 500 字的简讯,推送到 `$FEISHU_WEBHOOK`。
+
+**链接规则**:末尾附 digest 的 GitHub 在线链接(用 `$GITHUB_REPO` 拼接),不要用本地文件路径。
 
 ```bash
 source .env
+DIGEST_FILE="digests/$(date +%Y-%m-%d)-oai-weekly.md"
+DIGEST_URL="https://github.com/${GITHUB_REPO}/blob/main/${DIGEST_FILE}"
 curl -X POST "$FEISHU_WEBHOOK" \
   -H "Content-Type: application/json" \
-  -d '{"msg_type":"text","content":{"text":"<简讯内容,末尾附 digest 相对路径>"}}'
+  -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"<简讯内容>\n\n完整报告: ${DIGEST_URL}\"}}"
 ```
 
 ## 质量要求
