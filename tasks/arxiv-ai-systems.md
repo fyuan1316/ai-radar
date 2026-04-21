@@ -57,7 +57,9 @@ curl "http://export.arxiv.org/api/query?search_query=(...)"
 
 ## 推送飞书
 
-只推"本周精选"部分的标题+一句话,不超过 300 字。附 GitHub 链接到完整 digest。
+**格式和推送流程:见 [oai-weekly 推送规范](./oai-weekly.md#推送飞书)**(前置先 `git push`、简讯纯文本不得含 markdown 语法、链接用裸 URL;DIGEST_FILE 改成 `digests/$(date +%Y-%m-%d)-arxiv-ai-systems.md`)。
+
+**本 task 特有**:只推"本周精选"部分的标题 + 一句话,**不超过 300 字**;若本周无优质系统论文,推送跳过,只归档 digest。
 
 ## 质量要求
 - 精选论文必须自己读了 abstract + intro + experiments 才写,不能只看标题猜

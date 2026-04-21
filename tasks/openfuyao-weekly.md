@@ -91,18 +91,9 @@ GitCode 和 Gitee 都不在 `gh` CLI 范围。按下述顺序取数:
 
 ## 推送飞书
 
-同 oai-weekly:读 `$FEISHU_WEBHOOK` 和 `$GITHUB_REPO`,生成不超过 500 字简讯 + digest GitHub 在线链接。
+**格式和推送流程:见 [oai-weekly 推送规范](./oai-weekly.md#推送飞书)**(前置先 `git push`、简讯纯文本、链接裸 URL、默认 text 模式;DIGEST_FILE 改成 `digests/$(date +%Y-%m-%d)-openfuyao-weekly.md`)。
 
-**空周跳过规则**:如果本周 digest 正文只能写成"无重大更新"类内容(无新 release、无有价值 PR、官方无新公告),**不推飞书**,只把 digest 归档到 `digests/`,避免无信息量的消息骚扰。判断标准:如果"新功能 / 能力"和"官方动态"两节都是空的,就跳过。
-
-```bash
-source .env
-DIGEST_FILE="digests/$(date +%Y-%m-%d)-openfuyao-weekly.md"
-DIGEST_URL="https://github.com/${GITHUB_REPO}/blob/main/${DIGEST_FILE}"
-curl -X POST "$FEISHU_WEBHOOK" \
-  -H "Content-Type: application/json" \
-  -d "{\"msg_type\":\"text\",\"content\":{\"text\":\"<简讯内容>\n\n完整报告: ${DIGEST_URL}\"}}"
-```
+**空周跳过规则(本 task 特有)**:如果本周 digest 正文只能写成"无重大更新"类内容(无新 release、无有价值 PR、官方无新公告),**不推飞书**,只把 digest 归档到 `digests/`,避免无信息量的消息骚扰。判断标准:如果"新功能 / 能力"和"官方动态"两节都是空的,就跳过。
 
 ## 质量要求
 

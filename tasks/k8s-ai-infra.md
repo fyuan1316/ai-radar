@@ -3,6 +3,8 @@
 ## 目标
 跟踪 Kubernetes 社区里与 AI/ML 工作负载直接相关的 SIG 级别变化:调度、加速器管理、资源分配。这些是所有云原生 AI 产品的"地基",变化会影响上层所有组件的架构决策。
 
+> **与 `tasks/k8s-core.md` 的边界**:本任务只管 **AI-specific** 组件(gpu-operator / NFD / DRA 设备层 / LWS / JobSet / Kueue / scheduler-plugins gang 等)。通用的 K8s 集群能力(kube-scheduler 自身、kubelet、VPA、Cluster Autoscaler、Karpenter、controller-runtime、Gateway API、CSI、Gatekeeper/Kyverno 等)由 `k8s-core` 负责。重叠时默认归本任务,`k8s-core` 只在有通用溢出影响时补一笔。
+
 ## 数据源(GitHub API)
 
 ### GPU / 加速器管理
@@ -52,7 +54,7 @@
 
 ## 推送飞书
 
-同 oai-weekly。
+**格式和推送流程:见 [oai-weekly 推送规范](./oai-weekly.md#推送飞书)**(前置先 `git push`、简讯纯文本不得含 markdown 语法、链接用裸 URL;DIGEST_FILE 改成 `digests/$(date +%Y-%m-%d)-k8s-ai-infra.md`)。
 
 ## 质量要求
 - KEP 是最有价值的信号:一个新 KEP 可能决定我们 6 个月后的架构选型

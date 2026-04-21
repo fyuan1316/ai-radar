@@ -63,7 +63,9 @@
 
 ## 推送飞书
 
-同 oai-weekly,读取 `$FEISHU_WEBHOOK` 和 `$GITHUB_REPO`,推简讯+GitHub 链接。
+**格式和推送流程:见 [oai-weekly 推送规范](./oai-weekly.md#推送飞书)**(前置先 `git push`、简讯纯文本不得含 markdown 语法、链接用裸 URL;DIGEST_FILE 改成 `digests/$(date +%Y-%m-%d)-ai-infra-ecosystem.md`)。
+
+仓库多、摘要密度大,控制在 **500 字以内**,用要点列出本周前 3-5 个值得看的信号即可,不要把 digest 正文一股脑塞进去。
 
 ## 质量要求
 - 仓库多,信息量大,重点筛选:**只写对"做云原生 AI 基础设施产品"有用的变化**
