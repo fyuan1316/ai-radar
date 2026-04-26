@@ -1,55 +1,51 @@
 # OpenShift AI 周报 2026-04-26
 
-窗口:2026-04-19 → 2026-04-26(过去 7 天)
-
-抓取说明:本次运行环境中 `curl https://api.github.com/rate_limit` 返回 DNS 解析失败,未能按任务要求完成 GitHub API 原始 JSON 扫描;本 digest 使用 GitHub release 页面、Red Hat 官方文档和公开页面补充。结论可信度低于完整 API 扫描,需要下次在可解析 `api.github.com` 的环境里补一次 PR 级别核对。
+窗口:2026-04-19 → 2026-04-26
 
 ## 摘要
 
-- Red Hat OpenShift AI 3.4 文档已从 EA1 更新到 [3.4 Early Access 2](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index),这周最有价值的新信号是 **Kubeflow Trainer 的 JIT/周期 checkpoint + S3 checkpoint**。启示:OAI 把“训练作业被抢占后自动续跑”做成产品能力,我们自己的训练编排不能只停留在提交 TrainJob,必须把 checkpoint 策略、对象存储、恢复路径放进默认体验。
-- ODH v3.4.0 release 组件清单确认 MaaS、Trainer、Model Registry、MLflow、Feast、KServe、llm-d scheduler、WVA、llm-d KV cache 等已经被收束到同一条产品线: [opendatahub-operator v3.4.0](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0)。启示:OAI 的 GenAI 平台不是单点推理服务,而是“模型目录 + 服务 + 调度 + 评估 + 实验追踪 + 特征”的组合,我们对标时需要按能力簇拆差距。
-- Dashboard v3.4.0 的 Notable Changes 把 MaaS API keys、订阅模型、Prompt Management、Gen AI Playground、Ray Jobs、AutoML、Eval Hub、MCP catalog 都列进前台能力: [odh-dashboard v3.4.0](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0)。启示:企业用户感知的是一套工作流入口,不是底层 controller 名字;我们需要把“推理底座能力”包装成更完整的用户路径。
+- **OAI 3.4 进入 EA2 叙事,训练恢复成为新增重点**:Red Hat OpenShift AI 3.4 release notes 已更新到 [Early Access 2](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index),Kubeflow Trainer 增加 JIT checkpoint、周期 checkpoint 和 S3 checkpoint。启示:训练编排的竞争点从“能发起多机任务”升级到“抢占/维护/驱逐前能保存并恢复状态”。
+- **ODH 本周主线是 3.4 稳定化 + 3.5 铺垫**:`opendatahub-operator` 本周有 15 个 main commits,包括 JobSet CRD condition、Spark ScheduledSparkApplication E2E、leader election 初始化、vLLM image 命名从 RHAIIS 改为 RHAII: [opendatahub-operator commits](https://github.com/opendatahub-io/opendatahub-operator/commits/main/)。启示:OAI 在把 AI workload 依赖(JobSet/Spark/vLLM)收进 operator 的健康面和发行面。
+- **Dashboard 继续补 MLOps 工作流细节**:`odh-dashboard` 本周有 30 个 main commits,包括 MLflow experiments/prompts 测试、shared/block storage 百分比修复、MCP deployment auth 的 SAR-only client、model registry custom properties retention test: [odh-dashboard commits](https://github.com/opendatahub-io/odh-dashboard/commits/main/)。启示:OAI 正在把 Registry/MLflow/MCP 这些“平台服务”做成可验收的 UI 工作流,不是只接 API。
 
 ## 新功能 / 能力
 
-- [RHOAI 3.4 EA2: Kubeflow Trainer 支持 JIT checkpoint 和 S3 checkpoint](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) — 文档说明 Trainer 会在抢占、驱逐、维护前保存训练状态,并可把 checkpoint 存在 PVC 或 S3 兼容对象存储。
-  - 启示:这直接补齐 AI 集群里最贵的一类失败:长训练被节点维护/抢占打断。我们产品如果提供训练编排,应该默认暴露“checkpoint 存储位置、保存周期、恢复状态”三件事,而不是让用户在训练代码里自己兜底。
-- [RHOAI 3.4 EA2: model catalog 支持 IBM Power(ppc64le)](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) — 官方列出 ppc64le 架构可发现和部署的 Granite 模型镜像。
-  - 启示:OAI 在把“模型目录”扩展成多架构交付入口。我们如果面向国产/异构 CPU 和加速卡,模型目录也应记录架构、runtime、驱动栈和镜像兼容性,否则部署失败会变成售后问题。
-- [RHOAI 3.4: Feature Store 与项目、Workbench、RBAC 集成](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) — Feature Store 进入 OpenShift AI 的项目/权限模型。
-  - 启示:OAI 不是只做 LLM,还在补传统 MLOps 的数据特征层。我们做 AI 基础设施时至少要考虑 MLflow/Feature Store/Model Registry 的权限边界是否统一到 namespace/project。
-- [RHOAI 3.4: LLM Compressor Developer Preview](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) — 新增 workbench image 和 data science pipelines runtime,用于压缩优化 LLM 以便部署到 vLLM。
-  - 启示:这是“模型上线前优化”产品化。我们可以借鉴成一条标准流水线:模型导入 → 压缩/量化 → 评估 → 注册 → 部署,不要让压缩工具散落在 Notebook 里。
-- [odh-dashboard v3.4.0: MCP catalog and deployments 是 Dev Preview](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0) — Dashboard 发行说明已经把 MCP catalog/deployments 列为前台功能。
-  - 启示:MCP 正在从调试/运维工具转成平台能力入口。我们可以先做一个“集群诊断 MCP 工具集”,覆盖组件状态、事件、依赖、日志摘要,比直接做复杂 agent 更容易落地。
+- [RHOAI 3.4 EA2: Kubeflow Trainer checkpoint](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) — Trainer 支持 JIT checkpoint、周期 checkpoint 和 S3 兼容对象存储 checkpoint。
+  - 启示:我们训练产品也应把 checkpoint 策略做成模板字段:保存时机、存储位置、恢复状态、异常后的重试策略。
+- [ODH Operator: JobSet CRD check surfaced into JSO conditions](https://github.com/opendatahub-io/opendatahub-operator/commit/bb965877690eb29de489630ae892a11e365092bc) — JobSet CRD 检查被拆成单独 action,能把状态暴露到 JobSet Operator conditions。
+  - 启示:AI workload 依赖组件的“缺 CRD/版本不对”要进入产品健康面,不要等用户提交训练/推理任务时才报错。
+- [ODH Operator: ScheduledSparkApplication E2E](https://github.com/opendatahub-io/opendatahub-operator/commit/038549e88e3bdbedb3c07ad36ab5f9a27c71e937) — Spark Operator 覆盖 ScheduledSparkApplication E2E。
+  - 启示:OAI 继续把批处理/数据处理能力纳入 AI 平台验收范围。我们如果面向企业 MLOps,Ray/Spark/Argo 这类非推理 workload 也需要纳入平台 SLO。
+- [ODH Dashboard: MCP deployment auth SAR-only client](https://github.com/opendatahub-io/odh-dashboard/commit/07c97858c0a0245c9a2ef47c9e673d9395f1aba7) — Model Registry/MCP deployment auth 中 in-cluster K8s client 被收敛到 SAR-only interface。
+  - 启示:MCP 进入平台后,权限边界会很快变成核心问题。我们的诊断/agent 工具也应默认最小权限,用 SAR/SubjectAccessReview 做授权判断。
 
 ## 架构 / 依赖变化
 
-- [opendatahub-operator v3.4.0 组件清单](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0) 显示 OAI 已把 `llm-d-inference-scheduler`、`workload-variant-autoscaler`、`llm-d-kv-cache` 都作为 ODH v3.4 组件发布。
-  - 启示:OAI 的 LLM serving 方向已经从“只部署 vLLM/KServe”转向“调度器 + autoscaler + KV cache”三件套。我们做 KServe 兼容时,不能只看 InferenceService CRD,还要评估其周边调度扩展。
-- [opendatahub-operator v3.4.0 变更列表](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0) 继续出现 xKS/cloudmanager/Gateway API/LWS/WVA 权限和依赖项。
-  - 启示:xKS/cloudmanager 仍是“跨 Kubernetes / 托管面”的强信号。我们自己的 operator 也应该保持可被上层管理面调用:清晰的 CRD、幂等状态、可观测 status、可控 RBAC 命名。
-- [opendatahub-io/kserve odh-v3.4](https://github.com/opendatahub-io/kserve/releases/tag/odh-v3.4) 包含 llmisvc 的 WVA autoscaling config、Intel Gaudi config、imagePullSecrets 继承、distro build tags、customizeManagerOptions hook 等。
-  - 启示:ODH fork 的重点是“上游 KServe + 发行版适配层”。我们如果维护 fork,也应把发行版差异隔离在 build tags/overlay/hook,避免污染上游接口。
+- [opendatahub-operator v3.4.0](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0) 组件清单已包含 KServe、llm-d scheduler、llm-d KV cache、WVA、Model Registry、MLflow、Feast、Kueue、Trainer、Ray 等。
+  - 启示:OAI 的 3.x 架构是“模型平台 + 推理调度 + 批训练 + 实验/特征/注册中心”的组合包。我们对标时不能只盯 KServe,要按完整产品链路拆差距。
+- [opendatahub-io/kserve 本周同步 upstream master](https://github.com/opendatahub-io/kserve/commit/56fa4f85d7a54ec4ec0ee6957a676dea7bfe54b5),并修 OpenShift SCC 下 E2E 的 `runAsUser` 问题: [commit](https://github.com/opendatahub-io/kserve/commit/745375ef852071da4298ef88a206f17dcac867d1)。
+  - 启示:ODH KServe fork 的维护策略仍是“紧跟上游 + OpenShift 适配”。我们维护 fork 时也应把发行版差异限制在 overlay/SCC/build tag 层。
+- [model-registry 本周继续同步 Kubeflow main](https://github.com/opendatahub-io/model-registry/commit/15661b34e1a6bef25267fe9a6619131c01335550),并修 custom property 类型切换时 stale columns 清理: [commit](https://github.com/opendatahub-io/model-registry/commit/aebe8f8632f103865c9ecbbad717c0c8c5ea6204)。
+  - 启示:模型元数据 schema 演化会影响 UI、API、数据库迁移。我们的 Registry 需要把字段类型变更、属性保留、审计迁移作为产品级能力。
 
 ## 上游生态整合动向
 
-- [RHOAI 3.4 文档](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) 继续明确 Kubeflow Trainer v2、Kueue 集成、TrustyAI-Llama Stack guardrails、MLflow、Feature Store。
-  - 启示:OAI 的统一路径是“项目 namespace + RBAC + Kubeflow/Kueue/KServe/Llama Stack/MLflow”。我们若要对标,需要画出自己的项目域模型,明确每个组件如何共享用户、权限、审计和网络边界。
-- [odh-dashboard v3.4.0](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0) 把 Ray jobs 接入 Training dashboard。
-  - 启示:Ray 不只是底层 runtime,而是训练/批处理工作流的一等入口。我们如果支持 Ray,不要只安装 KubeRay operator,还需要 UI、日志、指标和失败恢复体验。
+- [odh-dashboard v3.4.0](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0) 继续把 MaaS、Prompt Management、Gen AI Playground、Ray Jobs、AutoML、Eval Hub、MCP catalog 放到前台。
+  - 启示:企业用户看到的是端到端工作流入口,不是底层 CRD。我们的推理底座要有“模型导入、评估、部署、调试、治理”的用户路径。
+- [notebooks 本周更新 LLM Compressor/PyTorch/TensorFlow ROCm 相关测试和 manifests](https://github.com/opendatahub-io/notebooks/commits/main/)。
+  - 启示:OAI 把模型压缩/工作台镜像当成上线前优化链路的一部分。我们可以设计“压缩/量化 → 评估 → 注册 → 部署”的内置流水线。
 
 ## 值得跟进
 
-- [ ] 下次在能访问 `api.github.com` 的环境里补扫 2026-04-19 → 2026-04-26 的 ODH PR,重点过滤 `cloudmanager`、`xKS`、`MCP`、`Trainer`、`MaaS`、`WVA`。
-- [ ] 精读 [RHOAI 3.4 EA2 release notes](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index),把 EA1→EA2 的新增能力单独整理成产品差距表。
-- [ ] 评估 Kubeflow Trainer checkpoint 能力是否可复用到我们训练任务:对象存储配置、抢占前 hook、恢复状态展示。
-- [ ] 设计“模型上线前优化流水线”:LLM Compressor / 量化 / eval / registry / KServe 部署一条链路。
+- [ ] 把 [RHOAI 3.4 EA2 checkpoint](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index) 拆成训练产品需求:checkpoint 策略、对象存储、恢复状态、抢占场景。
+- [ ] 跟 [JobSet condition 暴露](https://github.com/opendatahub-io/opendatahub-operator/commit/bb965877690eb29de489630ae892a11e365092bc),确认 OAI 怎么把依赖组件健康状态投射到 DataScienceCluster。
+- [ ] 精读 Dashboard MCP auth 相关变更,评估我们诊断工具的最小权限模型。
 
 ## 原始材料
 
-- [Red Hat OpenShift AI Self-Managed 3.4 Release Notes EA2](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index)
-- [opendatahub-io/opendatahub-operator v3.4.0](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0)
-- [opendatahub-io/odh-dashboard v3.4.0](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0)
-- [opendatahub-io/kserve odh-v3.4](https://github.com/opendatahub-io/kserve/releases/tag/odh-v3.4)
-- 未完成:GitHub API curl 原始扫描失败,错误为 `Could not resolve host: api.github.com`。
+- [RHOAI 3.4 Release Notes](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html-single/release_notes/index)
+- [opendatahub-operator v3.4.0](https://github.com/opendatahub-io/opendatahub-operator/releases/tag/v3.4.0)
+- [odh-dashboard v3.4.0](https://github.com/opendatahub-io/odh-dashboard/releases/tag/v3.4.0)
+- [opendatahub-io/opendatahub-operator commits](https://github.com/opendatahub-io/opendatahub-operator/commits/main/)
+- [opendatahub-io/odh-dashboard commits](https://github.com/opendatahub-io/odh-dashboard/commits/main/)
+- [opendatahub-io/kserve commits](https://github.com/opendatahub-io/kserve/commits/main/)
