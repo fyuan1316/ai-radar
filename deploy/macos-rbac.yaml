@@ -1,0 +1,55 @@
+# 这个文件用 macOS 高权限 kubectl 应用一次,给 pod 内 default SA 授权管理 fy-runner
+# 一次性投资,之后所有 fy-runner 操作(apply.sh / smoke / restart / down)都能在 pod 里跑
+#
+# 用法(macOS):
+#   kubectl apply -f kbs/ai-radar/deploy/macos-rbac.yaml
+#
+# 卸载:
+#   kubectl delete -f kbs/ai-radar/deploy/macos-rbac.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: alauda-developer-aimiddleware-yuanfang
+  name: fy-runner-manager
+rules:
+  # 管 secret(范围限定 ns,resourceNames 限 list 时不生效所以只能放整 ns)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  # 管 deployment
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale", "deployments/status"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # rollout status 需要 replicaset
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  # pod / log / exec
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  # 事件(排障用)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: alauda-developer-aimiddleware-yuanfang
+  name: default-can-manage-fy-runner
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: alauda-developer-aimiddleware-yuanfang
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fy-runner-manager

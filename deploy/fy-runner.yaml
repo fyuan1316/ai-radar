@@ -1,0 +1,206 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fy-runner
+  namespace: alauda-developer-aimiddleware-yuanfang
+  labels:
+    app: fy-runner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fy-runner
+  template:
+    metadata:
+      labels:
+        app: fy-runner
+        devpod.sh/created: "true"   # 触发 mihomo 注入 claude OAuth,不要删
+    spec:
+      containers:
+        - name: agent
+          image: build-harbor.alauda.cn/devcontainers/base:ubuntu
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -uo pipefail
+              echo "[$(date)] === fy-runner agent starting ==="
+
+              # 1) 等 mihomo 注入凭证
+              for i in $(seq 1 60); do
+                [ -f /workspaces/.claude/.credentials.json ] && break
+                echo "[$(date)] waiting credentials... ($i/60)"; sleep 5
+              done
+              [ -f /workspaces/.claude/.credentials.json ] \
+                || { echo "FATAL: credentials never appeared"; exit 1; }
+              echo "[$(date)] credentials OK"
+
+              # 2) 装依赖
+              export DEBIAN_FRONTEND=noninteractive
+              sed -i 's|http://archive.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn|g; s|http://ports.ubuntu.com|https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports|g' \
+                /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
+              apt-get update -qq
+              apt-get install -y --no-install-recommends \
+                git curl jq ca-certificates tzdata nodejs npm >/dev/null
+
+              ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+              echo "Asia/Shanghai" > /etc/timezone
+              mkdir -p /work/bin /work/logs /work/repos
+
+              # claude CLI
+              npm config set prefix /work/.local
+              npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
+              ln -sf /work/.local/bin/claude /work/bin/claude
+
+              # supercronic
+              curl -fsSL -o /work/bin/supercronic \
+                https://github.com/aptible/supercronic/releases/download/v0.2.29/supercronic-linux-amd64
+              chmod +x /work/bin/supercronic
+
+              export PATH=/work/bin:$PATH
+
+              # 3) clone 工作仓库
+              # 让 git 信任所有目录,避免后续 chown 1000 后 root/vscode 跨身份操作时 dubious-ownership 报错
+              git config --system safe.directory '*'
+              REPO=${GITHUB_REPO:-fyuan1316/ai-radar}
+              cd /work/repos
+              if [ ! -d main ]; then
+                git clone "https://oauth2:${GITHUB_TOKEN}@github.com/${REPO}.git" main
+              fi
+              cd main
+              git config user.email "fy-runner-bot@local"
+              git config user.name  "fy-runner-bot"
+              git pull --rebase origin main 2>/dev/null || true
+
+              # 3.1) 从环境变量(Secret 注入)生成 .env —— CLAUDE.md 硬约束要求 webhook 从 .env 读,
+              #      但 .env 是 gitignore 的,git clone 出来根本没有,导致 claude 找不到 FEISHU_WEBHOOK 跳过推送
+              cat > /work/repos/main/.env <<ENV
+              FEISHU_WEBHOOK=${FEISHU_WEBHOOK}
+              GITHUB_REPO=${GITHUB_REPO}
+              GITHUB_TOKEN=${GITHUB_TOKEN}
+              ENV
+              chmod 600 /work/repos/main/.env
+
+              # 3.5) pre-flight: 测 git push 权限 + feishu webhook 可达,任何一项失败立刻退出
+              # 让 pod CrashLoopBackOff,./apply.sh 的 rollout status 会飘红,问题在部署阶段就暴露
+              echo "[$(date)] pre-flight: probing git push permission..."
+              if ! git push --dry-run origin main 2>&1 | tee /tmp/git-preflight.log; then
+                echo "[$(date)] FATAL: git push 不通,大概率 GITHUB_TOKEN 缺 contents:write 权限"
+                echo "                修法:GitHub Settings → Tokens → 重发带 contents:write 权限的新 token"
+                exit 1
+              fi
+              echo "[$(date)] pre-flight: probing FEISHU_WEBHOOK..."
+              hc=$(curl -sS -m 10 -o /tmp/feishu-preflight.json -w '%{http_code}' \
+                -X POST "$FEISHU_WEBHOOK" \
+                -H 'Content-Type: application/json' \
+                -d '{"msg_type":"text","content":{"text":"fy-runner '"$(date +%F\ %T)"' 上线 (pre-flight)"}}' || echo 000)
+              if [ "$hc" != "200" ]; then
+                echo "[$(date)] FATAL: feishu webhook 返回 HTTP $hc"
+                cat /tmp/feishu-preflight.json 2>/dev/null
+                exit 1
+              fi
+              echo "[$(date)] pre-flight: all checks passed"
+
+              # 4) run-task.sh —— 带重试(失败自动 2 次,全失败才报警)
+              cat > /work/bin/run-task.sh <<'SH'
+              #!/usr/bin/env bash
+              set -uo pipefail
+              TASK="${1:?task name required}"
+              DATE=$(date +%Y-%m-%d)
+              LOG=/work/logs/${DATE}-${TASK}.log
+              MAX_TRIES=3
+              cd /work/repos/main
+
+              run_once() {
+                local attempt=$1
+                echo "[$(date)] === attempt ${attempt}/${MAX_TRIES} for ${TASK} ===" | tee -a "$LOG"
+                # 每次开始前同步到远端最新,清掉上次失败可能残留的本地 commit
+                git fetch origin main 2>>"$LOG" || true
+                git reset --hard origin/main 2>>"$LOG" || true
+
+                PROMPT="请严格按 tasks/${TASK}.md 的描述执行任务,产出归档到 digests/${DATE}-${TASK}.md,并遵循 CLAUDE.md 中关于 git push 与飞书推送的所有硬约束。"
+                /work/bin/claude -p "$PROMPT" \
+                  --output-format text \
+                  --dangerously-skip-permissions \
+                  2>&1 | tee -a "$LOG"
+                return ${PIPESTATUS[0]}
+              }
+
+              for i in $(seq 1 $MAX_TRIES); do
+                if run_once $i; then
+                  echo "[$(date)] OK on attempt $i" | tee -a "$LOG"
+                  exit 0
+                fi
+                echo "[$(date)] attempt $i failed" | tee -a "$LOG"
+                # 不是最后一次的话,退避后再来:第 2 次 60s,第 3 次 120s
+                if [ "$i" -lt "$MAX_TRIES" ]; then
+                  backoff=$(( i * 60 ))
+                  echo "[$(date)] sleeping ${backoff}s before retry..." | tee -a "$LOG"
+                  sleep "$backoff"
+                fi
+              done
+
+              # 走到这里说明 3 次全失败
+              echo "[$(date)] === all ${MAX_TRIES} attempts failed, alerting feishu ===" | tee -a "$LOG"
+              ALERT=$(printf 'fy-runner 告警: %s 任务 3 次重试全失败\n\n日期: %s\n任务: %s\n\n最后 15 行日志:\n%s\n\n完整日志在 pod 内: /work/logs/%s-%s.log' \
+                "$TASK" "$DATE" "$TASK" "$(tail -15 "$LOG")" "$DATE" "$TASK")
+
+              curl -sS -m 10 -X POST "$FEISHU_WEBHOOK" \
+                -H 'Content-Type: application/json' \
+                -d "$(jq -nc --arg t "$ALERT" '{msg_type:"text",content:{text:$t}}')" \
+                >>"$LOG" 2>&1 || true
+
+              exit 1
+              SH
+              chmod +x /work/bin/run-task.sh
+
+              # 5) crontab(时区 Asia/Shanghai,贴合各上游披露窗口)
+              # 周一 09:00 arxiv:抓上周一~周五完整 arxiv,周末已沉淀
+              # 周一 17:00 openfuyao:国内项目,工作日午后扫描覆盖更全
+              # 周二 11:00 OAI:上周完整 + 周一美东 patch tuesday 准备活动
+              # 周三 14:00 ai-infra(中期):捕捉本周早期 vLLM/HF/SGLang 发版
+              # 周四 11:00 k8s-core:跟着美国周三 patch tuesday,SH 周四已可见
+              # 周四 13:00 k8s-ai-infra:跟 k8s-core 错峰 2h
+              # 周五 14:00 ai-infra(总结):跟周三错开,覆盖中后段 release
+              # diff-watch(每天,算力栈 commit 区间趋势,空日自动跳过推送):
+              #   01:30 HAMi(GitHub)、02:00 NVIDIA(GitHub)、02:30 昇腾(GitCode clone,放最后)
+              #   错开周报时段;单仓单日 diff 小,跑得快,空日只归档不刷飞书
+              cat > /work/crontab <<'CRON'
+              0  9 * * 1   /work/bin/run-task.sh arxiv-ai-systems
+              0 17 * * 1   /work/bin/run-task.sh openfuyao-weekly
+              0 11 * * 2   /work/bin/run-task.sh oai-weekly
+              0 14 * * 3   /work/bin/run-task.sh ai-infra-ecosystem
+              0 11 * * 4   /work/bin/run-task.sh k8s-core
+              0 13 * * 4   /work/bin/run-task.sh k8s-ai-infra
+              0 14 * * 5   /work/bin/run-task.sh ai-infra-ecosystem
+              30 1 * * *   /work/bin/run-task.sh hami-watch
+              0  2 * * *   /work/bin/run-task.sh compute-nv-watch
+              30 2 * * *   /work/bin/run-task.sh compute-ascend-watch
+              CRON
+
+              # 6) 把 /work 交给 vscode (UID 1000),supercronic 起来后任务都是 vscode 跑
+              # 原因:claude --dangerously-skip-permissions 拒绝 root,必须非 root 才能在非交互模式跑
+              chown -R 1000:1000 /work
+              # claude 的 session 状态会写到 CLAUDE_CONFIG_DIR,但 /workspaces/.claude 已是 0777,无需额外处理
+
+              echo "[$(date)] === setup complete, dropping to vscode user, starting supercronic ==="
+              exec runuser -u vscode -- /work/bin/supercronic /work/crontab
+          env:
+            - name: CLAUDE_CONFIG_DIR
+              value: /workspaces/.claude
+            - name: TZ
+              value: Asia/Shanghai
+          envFrom:
+            - secretRef:
+                name: fy-runner-secrets
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { cpu: 2,    memory: 4Gi }
+          volumeMounts:
+            - name: work
+              mountPath: /work
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 8Gi
