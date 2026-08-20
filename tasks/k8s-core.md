@@ -4,8 +4,8 @@
 
 跟踪 Kubernetes 自身核心组件、自动扩缩容、runtime、API machinery、网络存储、策略引擎的重要变化。视角与 `k8s-ai-infra` **互补**:
 
-- `k8s-ai-infra` 专注 **AI 专用组件**(gpu-operator / NFD / DRA 设备层 / LWS / JobSet / Kueue / scheduler-plugins 的 gang scheduling / WVA 等)
-- 本任务专注 **集群通用能力**(kube-scheduler / kubelet / apiserver / VPA / HPA / Cluster Autoscaler / Karpenter / controller-runtime / 网络 / 存储 / 策略)
+- `k8s-ai-infra` 专注 **AI 专用组件**(gpu-operator / NFD / DRA 设备层 / LWS / JobSet / Kueue / Volcano / scheduler-plugins 的 gang scheduling / WVA 等),**含 kube-scheduler 的 AI 方向原生演进**(Workload Aware Scheduling / gang / Workload API / PodGroup / KEP-4671 线)
+- 本任务专注 **集群通用能力**(kube-scheduler 非 AI 的通用改动 / kubelet / apiserver / VPA / HPA / Cluster Autoscaler / Karpenter / controller-runtime / 网络 / 存储 / 策略)
 
 为什么单开:我们做的是云原生 AI 基础设施产品,底层仍是 K8s。kube-scheduler、VPA、kubelet、apiserver 自身的改动直接影响产品的稳定性、资源效率、升级节奏,不能靠 AI 侧 task 顺带捎一下。
 
@@ -90,7 +90,7 @@ curl -s "${AUTH[@]}" https://api.github.com/rate_limit | python3 -c "import sys,
 - v1.3x 周期进展(alpha/beta/GA 晋级)、release 时间表、重点 KEP 状态变更
 
 ## 调度(kube-scheduler)
-- 调度框架、preemption、topology、affinity 等核心调度器变更
+- 调度框架、preemption、topology、affinity 等**通用**调度器变更;WAS / gang / Workload API 线归 `k8s-ai-infra`,这里只在有通用溢出影响时补一笔
 
 ## 节点 & kubelet
 - kubelet / cgroup v2 / runtime / device manager / eviction / image GC
@@ -128,7 +128,7 @@ curl -s "${AUTH[@]}" https://api.github.com/rate_limit | python3 -c "import sys,
 
 ## 质量要求
 
-- **与 `k8s-ai-infra` 边界**:AI 专用组件(gpu-operator / NFD / DRA device 层 / LWS / JobSet / Kueue / scheduler-plugins gang / WVA)归 `k8s-ai-infra`,本任务**不要重复写**。如果某个变化两边都能沾,默认归 `k8s-ai-infra`,本任务只在"对通用 K8s 有溢出影响"时补一笔(例如 DRA 核心协议变化影响所有 ResourceClaim 用户)
+- **与 `k8s-ai-infra` 边界**:AI 专用组件(gpu-operator / NFD / DRA device 层 / LWS / JobSet / Kueue / Volcano / scheduler-plugins gang / WVA)及 kube-scheduler 的 WAS/gang/Workload API 演进归 `k8s-ai-infra`,本任务**不要重复写**。如果某个变化两边都能沾,默认归 `k8s-ai-infra`,本任务只在"对通用 K8s 有溢出影响"时补一笔(例如 DRA 核心协议变化影响所有 ResourceClaim 用户)
 - **KEP 是最有价值的信号**:一个 sig-scheduling 或 sig-node 的 alpha/beta/GA 晋级可能决定我们产品未来 6 个月的架构选择
 - **版本节奏敏感**:每条变更要落到"进了哪个 k8s minor 版本的 alpha / beta / GA"
 - **VPA 的重点**:VPA 长期是"准 alpha"的角色,但 **in-place pod resize**(KEP-1287)GA 后,VPA 在生产环境才真正可用——跟紧这条线
