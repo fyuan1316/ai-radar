@@ -163,6 +163,7 @@ spec:
               # 周四 11:00 k8s-core:跟着美国周三 patch tuesday,SH 周四已可见
               # 周四 13:00 k8s-ai-infra:跟 k8s-core 错峰 2h
               # 周五 14:00 ai-infra(总结):跟周三错开,覆盖中后段 release
+              # 周日 10:00 k8s-release-deep-dive:事件驱动自检,仅新 minor 的 rc.0/GA 时产出,平时 __SKIP__ 不推飞书
               # diff-watch(每天,算力栈 commit 区间趋势,空日自动跳过推送):
               #   01:30 HAMi(GitHub)、02:00 NVIDIA(GitHub)、02:30 昇腾(GitCode clone,放最后)
               #   错开周报时段;单仓单日 diff 小,跑得快,空日只归档不刷飞书
@@ -174,6 +175,7 @@ spec:
               0 11 * * 4   /work/bin/run-task.sh k8s-core
               0 13 * * 4   /work/bin/run-task.sh k8s-ai-infra
               0 14 * * 5   /work/bin/run-task.sh ai-infra-ecosystem
+              0 10 * * 0   /work/bin/run-task.sh k8s-release-deep-dive
               30 1 * * *   /work/bin/run-task.sh hami-watch
               0  2 * * *   /work/bin/run-task.sh compute-nv-watch
               30 2 * * *   /work/bin/run-task.sh compute-ascend-watch

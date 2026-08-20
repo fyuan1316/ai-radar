@@ -9,6 +9,8 @@
 
 为什么单开:我们做的是云原生 AI 基础设施产品,底层仍是 K8s。kube-scheduler、VPA、kubelet、apiserver 自身的改动直接影响产品的稳定性、资源效率、升级节奏,不能靠 AI 侧 task 顺带捎一下。
 
+> **与 `tasks/k8s-release-deep-dive.md` 的分工**:本任务是 7 天窗口的新闻视角;每个 minor 版本(rc.0 / GA 两时刻)的**系统性版本档案**(全量 KEP 晋级清单、milestone 级 feature PR 梳理、升级 checklist、跨版本方向线)归 deep-dive 任务。本任务的"版本节奏"小节只做窗口内增量,**检测到新 minor 的 rc.0 或正式 tag 时,在"值得跟进"里提示 deep-dive 该跑了**。
+
 ## 数据源(GitHub API)
 
 ### 核心主线
