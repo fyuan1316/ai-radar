@@ -28,7 +28,9 @@
 - **Dashboard 走 module federation**:[core-bff 通过 federation-config 代理 module API 路径](https://github.com/opendatahub-io/odh-dashboard/pull/9444)、HostApi 拆分为 Core/Infra 上下文(#9289)、notebooks v2 插件前端集成(#9226)。整个前端在从单体走向可插拔联邦。
 - **cert-manager 解耦**:operator [移除 cloud controller manager 里的 cert-manager Helm 部署与健康监控](https://github.com/opendatahub-io/opendatahub-operator/pull/3929)。
 - **安全**:[OIDC IssuerURL 校验](https://github.com/opendatahub-io/opendatahub-operator/pull/3987)、data-registry BFF 加 InsecureSkipVerify 护栏。
-- **notebooks 基础镜像**:[改用 ODH Kale 取代 Kubeflow Kale](https://github.com/opendatahub-io/notebooks/pull/4400)、OS 9.6→9.8 迁移、统一 AIPCC base images;还加了 [fix-cve 的 Claude Code / Cursor 封装 skill](https://github.com/opendatahub-io/notebooks/pull/4410)。
+- **notebooks 基础镜像**:[改用 ODH Kale 取代 Kubeflow Kale](https://github.com/opendatahub-io/notebooks/pull/4400)、OS 9.6→9.8 迁移、统一 AIPCC base images。
+- **维护流程 agent 化(值得单独看)**:notebooks 构建仓建了工具无关的 `.agents/plugins/` 插件体系(cve-resolution / cluster-bot / ci-summary / pr-review 四个 skill,各带 plugin.json + mcp_config.json);[#4410](https://github.com/opendatahub-io/notebooks/pull/4410) 只是把正本 skill 软链进 `.claude/skills/` 与 `.cursor/skills/`,让 Claude Code / Cursor 都能 `/fix-cve`。`fix-cve` 是一条全自主 CVE 修复流水线:经 Atlassian MCP 拉 Jira 工单→按"包×分支"聚类→改 `cve-constraints.txt`→refresh lock→建 PR→回写工单→触发 Konflux 构建→出 Slack 汇总,失败即记录续跑、无人值守。
+  - 启示:OAI 把 AI agent 用到了自己的产品供应链维护(面向下游 red-hat-data-services/notebooks 发行版),不是 demo。CVE/合规 toil 是 agent 高价值落地点;那套"skill 正本中立目录 + 多工具软链"的组织方式可直接抄;MCP 已是其研发流程的生产集成层。建议拿我们镜像仓 CVE backlog 做一次对标 PoC。
 
 ## 上游生态整合动向
 
