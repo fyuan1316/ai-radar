@@ -31,8 +31,11 @@
    ```bash
    ./hack/diff-scan-gitcode.sh Ascend/mind-cluster compute-ascend-watch \
      component/ascend-device-plugin component/ascend-docker-runtime component/ascend-for-volcano \
-     component/ascend-operator component/npu-exporter component/noded component/clusterd component/infer-operator
+     component/ascend-operator component/npu-exporter component/noded component/clusterd component/infer-operator \
+     component/ascend-dynamic-resource-allocation component/ascend-common \
+     component/ascend-clusterops-agent component/ascend-faultdiag
    ```
+   > PATHPREFIX 漏项会**静默过滤**整条主线,踩过两次:`ascend-dynamic-resource-allocation`/`ascend-common`(DRA 主线)、`ascend-clusterops-agent`/`ascend-faultdiag`(运维 Agent + 故障诊断,2026-11-21 那期 145 个改动文件里有 128 个在这两个目录)。新增 component 时先跑一次不带 PATHPREFIX 的 compare 核对目录分布。
 2. 其余 openFuyao 仓(全仓,不限 path):
    ```bash
    for r in npu-operator npu-container-toolkit npu-driver-installer vNPU \
