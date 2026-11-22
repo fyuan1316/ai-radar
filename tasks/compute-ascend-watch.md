@@ -21,10 +21,14 @@
 | `openFuyao/vNPU` | P0 | **NPU 虚拟化/切分**(对标 HAMi vGPU,vCANN) |
 | `openFuyao/npu-node-provision` | P1 | NPU 节点准备/provision |
 | `openFuyao/npu-dra-plugin` | P1 | 昇腾接 K8s DRA |
+| `openFuyao/npu-feature-discovery` | P1 | **NPU 型号发现 + 节点打标**(对标 NFD),npu-operator→调度器的标签来源,新机型纳管最早信号 |
 | `openFuyao/volcano-ext` | P2 | Volcano NPU 拓扑亲和扩展 |
 | `openFuyao/ub-network-device-plugin` | P2 | UB 超低时延网络 device plugin(多机训练 fabric) |
+| `openFuyao/ub-network-bandwidth-operator` | P2 | UB 带宽配置 operator(同 fabric 主线,configmap 下发带宽) |
 
-> 建文件时若 openFuyao SIG-installation 下有 `npu-driver-installer`/`npu-node-provision` 等驱动容器化新仓,补进 P1(先 `WebFetch https://gitcode.com/openFuyao` 拿最新清单)。
+> **定期核对组织清单**:每隔若干期跑 `curl -s "https://api.gitcode.com/api/v5/orgs/openFuyao/repos?per_page=100&page=N"`(N=1..3,`orgs` 端点比网页可靠)拉全量仓库名,把新出现的 NPU/算力相关仓补进表里。2026-11-23 据此补入 `npu-feature-discovery`(活跃却长期漏扫)与 `ub-network-bandwidth-operator`。
+> **空壳仓待观察**(只有 Initial commit、无代码,暂不纳入扫描):`equivalent-compute-unit`(2026-11-18 建仓,"算力等效单元",异构算力折算/配额等效,与我们产品多厂商统一计量直接相关)、`compute-fusion`(2026-10-23 建仓)。出代码即纳管。
+> **已知盲区**:GitCode compare 只跟默认分支,各仓在 feature 分支上的开发会被整体漏掉。
 
 ## 执行步骤
 1. mind-cluster(用 PATHPREFIX 限定 component 子目录,避免文档/构建噪声):
@@ -39,7 +43,8 @@
 2. 其余 openFuyao 仓(全仓,不限 path):
    ```bash
    for r in npu-operator npu-container-toolkit npu-driver-installer vNPU \
-            npu-node-provision npu-dra-plugin volcano-ext ub-network-device-plugin; do
+            npu-node-provision npu-dra-plugin npu-feature-discovery \
+            volcano-ext ub-network-device-plugin ub-network-bandwidth-operator; do
      ./hack/diff-scan-gitcode.sh "openFuyao/$r" compute-ascend-watch
    done
    ```
