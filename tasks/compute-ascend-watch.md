@@ -38,9 +38,10 @@
      component/ascend-operator component/npu-exporter component/noded component/clusterd component/infer-operator \
      component/ascend-dynamic-resource-allocation component/ascend-common \
      component/ascend-clusterops-agent component/ascend-faultdiag component/ascend-faultdiag-online \
-     component/container-manager
+     component/container-manager component/k8s-rdma-shared-dev-plugin component/dpu-exporter \
+     component/mindio component/taskd component/ub-host-device-cni
    ```
-   > PATHPREFIX 漏项会**静默过滤**整条主线,踩过两次:`ascend-dynamic-resource-allocation`/`ascend-common`(DRA 主线)、`ascend-clusterops-agent`/`ascend-faultdiag`(运维 Agent + 故障诊断,2026-11-21 那期 145 个改动文件里有 128 个在这两个目录)。2026-11-24 第三次:`component/container-manager`(容器侧卡死/设备重置管理,与 device-plugin 卡死检测同一提交)不在清单;`ascend-faultdiag-online`(在线慢节点/网络故障算法)只是被 `ascend-faultdiag` 前缀碰巧匹配,一并显式补入。新增 component 时先跑一次不带 PATHPREFIX 的 compare 核对目录分布。
+   > PATHPREFIX 漏项会**静默过滤**整条主线,踩过两次:`ascend-dynamic-resource-allocation`/`ascend-common`(DRA 主线)、`ascend-clusterops-agent`/`ascend-faultdiag`(运维 Agent + 故障诊断,2026-11-21 那期 145 个改动文件里有 128 个在这两个目录)。2026-11-24 第三次:`component/container-manager`(容器侧卡死/设备重置管理,与 device-plugin 卡死检测同一提交)不在清单;`ascend-faultdiag-online`(在线慢节点/网络故障算法)只是被 `ascend-faultdiag` 前缀碰巧匹配,一并显式补入。2026-11-27 第四次:`component/k8s-rdma-shared-dev-plugin`(Atlas 950 SP500 DPU 掉卡检测脚本)漏扫;据 `contents/component` 全量目录核对,同时补入从未扫过的 `dpu-exporter`、`mindio`、`taskd`、`ub-host-device-cni`。**每期必做**:跑一次不带 PATHPREFIX 的 compare 看目录分布,并对 `curl .../contents/component?ref=master` 的目录清单做差集。
 2. 其余 openFuyao 仓(全仓,不限 path):
    ```bash
    for r in npu-operator npu-container-toolkit npu-driver-installer vNPU \
