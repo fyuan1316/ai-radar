@@ -328,8 +328,8 @@ containerd 的旧 `removeRuntime` 只容忍 `"path not found"` 一种错误串,�
 
 **5. 其余(非 component/,靠全量 compare 才可见)**
 
-- `docs/zh/scheduling/01_introduction/03_supported_product_models_and_os.md` 重排了章节:原"集群场景 / 单机场景 / 单机场景(训练)/ 单机场景(推理)"四段改为"管理节点 / 计算节点(表 1 训推通用、表 2 训练、表 3 推理)/ 存储节点",并新增两句部署约束 —— 管理节点"MindCluster 组件对于 OS 无强依赖,建议使用 K8s 支持的 OS 版本"、存储节点"无 mindcluster 组件部署"。**机型与 OS 条目本身没有新增**(diff 里 Atlas 900 A3 SuperPoD、A200T A3 Box8 等行只有空格与 kernel 版本号写法 `6.6.80.29` → `6.6.80-29` 的订正),所以这期不构成"新机型纳管"信号。https://gitcode.com/Ascend/mind-cluster/commit/5fae4269
-- `.gitcode/workflows/scripts/ut_python_execute.sh` 给 `ascend-clusterops-agent` 的 UT pip 清单补了顶层 `langchain`(原先只装 `langgraph langchain-openai`)—— 该 Agent 开始直接依赖 langchain 顶层包,不只是 langgraph + OpenAI 适配。https://gitcode.com/Ascend/mind-cluster/commit/581dfaf9
+- `docs/zh/scheduling/01_introduction/03_supported_product_models_and_os.md` 重排了章节:原"集群场景 / 单机场景 / 单机场景(训练)/ 单机场景(推理)"四段改为"管理节点 / 计算节点(表 1 训推通用、表 2 训练、表 3 推理)/ 存储节点",并新增两句部署约束 —— 管理节点"MindCluster 组件对于 OS 无强依赖,建议使用 K8s 支持的 OS 版本"、存储节点"无 mindcluster 组件部署"。**机型与 OS 条目本身没有新增**(diff 里 Atlas 900 A3 SuperPoD、A200T A3 Box8 等行只有空格与 kernel 版本号写法 `6.6.80.29` → `6.6.80-29` 的订正),所以这期不构成"新机型纳管"信号。https://gitcode.com/Ascend/mind-cluster/commit/5fae4269bb08a9e89538da4a2265c74ed1a2c99d
+- `.gitcode/workflows/scripts/ut_python_execute.sh` 给 `ascend-clusterops-agent` 的 UT pip 清单补了顶层 `langchain`(原先只装 `langgraph langchain-openai`)—— 该 Agent 开始直接依赖 langchain 顶层包,不只是 langgraph + OpenAI 适配。https://gitcode.com/Ascend/mind-cluster/commit/581dfaf9f446c50595a7bd4909718a81bfa95e95
 
 ### 后续发展方向 [AI]
 
