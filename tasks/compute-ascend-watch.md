@@ -39,9 +39,10 @@
      component/ascend-dynamic-resource-allocation component/ascend-common \
      component/ascend-clusterops-agent component/ascend-faultdiag component/ascend-faultdiag-online \
      component/container-manager component/k8s-rdma-shared-dev-plugin component/dpu-exporter \
-     component/mindio component/taskd component/ub-host-device-cni
+     component/mindio component/taskd component/ub-host-device-cni \
+     helm-deploy-tool/app/charts
    ```
-   > PATHPREFIX 漏项会**静默过滤**整条主线,踩过两次:`ascend-dynamic-resource-allocation`/`ascend-common`(DRA 主线)、`ascend-clusterops-agent`/`ascend-faultdiag`(运维 Agent + 故障诊断,2026-11-21 那期 145 个改动文件里有 128 个在这两个目录)。2026-11-24 第三次:`component/container-manager`(容器侧卡死/设备重置管理,与 device-plugin 卡死检测同一提交)不在清单;`ascend-faultdiag-online`(在线慢节点/网络故障算法)只是被 `ascend-faultdiag` 前缀碰巧匹配,一并显式补入。2026-11-27 第四次:`component/k8s-rdma-shared-dev-plugin`(Atlas 950 SP500 DPU 掉卡检测脚本)漏扫;据 `contents/component` 全量目录核对,同时补入从未扫过的 `dpu-exporter`、`mindio`、`taskd`、`ub-host-device-cni`。**每期必做**:跑一次不带 PATHPREFIX 的 compare 看目录分布,并对 `curl .../contents/component?ref=master` 的目录清单做差集。
+   > PATHPREFIX 漏项会**静默过滤**整条主线,踩过两次:`ascend-dynamic-resource-allocation`/`ascend-common`(DRA 主线)、`ascend-clusterops-agent`/`ascend-faultdiag`(运维 Agent + 故障诊断,2026-11-21 那期 145 个改动文件里有 128 个在这两个目录)。2026-11-24 第三次:`component/container-manager`(容器侧卡死/设备重置管理,与 device-plugin 卡死检测同一提交)不在清单;`ascend-faultdiag-online`(在线慢节点/网络故障算法)只是被 `ascend-faultdiag` 前缀碰巧匹配,一并显式补入。2026-11-27 第四次:`component/k8s-rdma-shared-dev-plugin`(Atlas 950 SP500 DPU 掉卡检测脚本)漏扫;据 `contents/component` 全量目录核对,同时补入从未扫过的 `dpu-exporter`、`mindio`、`taskd`、`ub-host-device-cni`。2026-11-28 第五次,但换了一类:`component/` 侧 19 个目录与 PATHPREFIX 首次完全对齐(差集为空),漏的是 **`component/` 之外的顶层目录** —— rdma-dp 的 NAD 拆分里 `helm-deploy-tool/app/charts/k8s-rdma-shared-dev-plugin/templates/nad.yaml`(chart 与 component 下的裸 YAML 是同一能力的两种交付)被前缀整块挡掉,已把 `helm-deploy-tool/app/charts` 补入上面的命令。**每期必做**:跑一次不带 PATHPREFIX 的 compare 看目录分布,并对 `curl .../contents/component?ref=master` 的目录清单做差集。注意**差集为空不等于没盲区** —— 差集只核 `component/` 内部,顶层同级目录(mind-cluster 现有 `build / component / docker / docs / helm-deploy-tool / pre-commit / tests`)永远不在差集视野里,全量 compare 那一步不能省。
 2. 其余 openFuyao 仓(全仓,不限 path):
    ```bash
    for r in npu-operator npu-container-toolkit npu-driver-installer vNPU \
